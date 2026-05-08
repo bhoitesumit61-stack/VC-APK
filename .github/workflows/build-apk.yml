@@ -27,15 +27,16 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          # Updated to a newer version to support all dependencies
           flutter-version: '3.22.0' 
           channel: 'stable'
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Create local.properties
+      - name: Create Android Boilerplate
         run: |
+          mkdir -p android/gradle/wrapper
+          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-all.zip" > android/gradle/wrapper/gradle-wrapper.properties
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "flutter.versionCode=1" >> android/local.properties
           echo "flutter.versionName=1.0.0" >> android/local.properties
