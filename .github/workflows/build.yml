@@ -16,9 +16,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: List repo contents (debug)
-        run: ls -la
-
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -32,38 +29,30 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Find Flutter project folder
-        id: find_project
+      - name: Generate missing launcher icons
         run: |
-          if [ -f "pubspec.yaml" ]; then
-            echo "project_dir=." >> $GITHUB_OUTPUT
-          elif [ -f "voxlink_apk/pubspec.yaml" ]; then
-            echo "project_dir=voxlink_apk" >> $GITHUB_OUTPUT
-          else
-            echo "❌ Could not find pubspec.yaml!"
-            find . -name "pubspec.yaml" 2>/dev/null
-            exit 1
-          fi
+          flutter create --project-name temp_icons /tmp/temp_flutter
+          cp -r /tmp/temp_flutter/android/app/src/main/res/mipmap-* \
+            voxlink_apk/android/app/src/main/res/
 
       - name: Create local.properties
         run: |
-          DIR=${{ steps.find_project.outputs.project_dir }}
-          echo "sdk.dir=$ANDROID_HOME" > $DIR/android/local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> $DIR/android/local.properties
-          echo "flutter.versionCode=1" >> $DIR/android/local.properties
-          echo "flutter.versionName=1.0.0" >> $DIR/android/local.properties
+          echo "sdk.dir=$ANDROID_HOME" > voxlink_apk/android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> voxlink_apk/android/local.properties
+          echo "flutter.versionCode=1" >> voxlink_apk/android/local.properties
+          echo "flutter.versionName=1.0.0" >> voxlink_apk/android/local.properties
 
       - name: Install Flutter dependencies
+        working-directory: voxlink_apk
         run: flutter pub get
-        working-directory: ${{ steps.find_project.outputs.project_dir }}
 
       - name: Build Release APK
+        working-directory: voxlink_apk
         run: flutter build apk --release --no-tree-shake-icons
-        working-directory: ${{ steps.find_project.outputs.project_dir }}
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: VoxLink-Release-APK
-          path: "**/flutter-apk/app-release.apk"
+          path: voxlink_apk/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
