@@ -13,33 +13,293 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Set up Flutter 3.22.3
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.3'
           channel: 'stable'
           cache: true
 
-      - name: Create fresh Flutter project
-        run: |
-          flutter create --org com.voxlink --project-name voxlink_app /tmp/voxlink_app
+      - name: Create Flutter project
+        run: flutter create --org com.voxlink --project-name voxlink_app /tmp/voxlink_app
 
-      - name: Inject our VoxLink main.dart
+      - name: Write pubspec.yaml
         run: |
-          cp voxlink_apk/lib/main.dart /tmp/voxlink_app/lib/main.dart
+          cat > /tmp/voxlink_app/pubspec.yaml << 'PUBSPEC'
+          name: voxlink_app
+          description: VoxLink Premium Voice Chat
+          version: 1.0.0+1
+          publish_to: 'none'
+          environment:
+            sdk: ">=3.3.0 <4.0.0"
+          dependencies:
+            flutter:
+              sdk: flutter
+            livekit_client: ^2.1.9
+            permission_handler: ^11.3.1
+            google_fonts: ^6.2.0
+            http: ^1.2.1
+          dev_dependencies:
+            flutter_test:
+              sdk: flutter
+            flutter_lints: ^4.0.0
+          flutter:
+            uses-material-design: true
+          PUBSPEC
 
-      - name: Inject our pubspec.yaml
+      - name: Write main.dart
         run: |
-          cp voxlink_apk/pubspec.yaml /tmp/voxlink_app/pubspec.yaml
+          cat > /tmp/voxlink_app/lib/main.dart << 'MAINDART'
+          import 'dart:convert';
+          import 'package:flutter/material.dart';
+          import 'package:flutter/services.dart';
+          import 'package:livekit_client/livekit_client.dart';
+          import 'package:permission_handler/permission_handler.dart';
+          import 'package:google_fonts/google_fonts.dart';
+          import 'package:http/http.dart' as http;
+
+          void main() {
+            WidgetsFlutterBinding.ensureInitialized();
+            SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.light,
+            ));
+            runApp(const VoxLinkApp());
+          }
+
+          class VoxLinkApp extends StatelessWidget {
+            const VoxLinkApp({super.key});
+            @override
+            Widget build(BuildContext context) {
+              return MaterialApp(
+                title: 'VoxLink',
+                debugShowCheckedModeBanner: false,
+                theme: ThemeData(
+                  brightness: Brightness.dark,
+                  scaffoldBackgroundColor: Colors.black,
+                  colorScheme: const ColorScheme.dark(primary: Colors.white, onPrimary: Colors.black),
+                  textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme),
+                ),
+                home: const JoinScreen(),
+              );
+            }
+          }
+
+          class JoinScreen extends StatefulWidget {
+            const JoinScreen({super.key});
+            @override
+            State<JoinScreen> createState() => _JoinScreenState();
+          }
+
+          class _JoinScreenState extends State<JoinScreen> {
+            final _nameCtrl = TextEditingController();
+            final _roomCtrl = TextEditingController();
+            bool _isJoining = false;
+
+            @override
+            void dispose() { _nameCtrl.dispose(); _roomCtrl.dispose(); super.dispose(); }
+
+            Future<void> _handleJoin() async {
+              final name = _nameCtrl.text.trim();
+              final room = _roomCtrl.text.trim();
+              if (name.isEmpty || room.isEmpty) return;
+              setState(() => _isJoining = true);
+              try {
+                final status = await Permission.microphone.request();
+                if (!status.isGranted) throw Exception('Microphone permission denied');
+                final uri = Uri.parse('https://vcrepo.vercel.app/api/get-token?room=${Uri.encodeComponent(room)}&user=${Uri.encodeComponent(name)}');
+                final res = await http.get(uri).timeout(const Duration(seconds: 10));
+                if (res.statusCode != 200) throw Exception('Backend error: ${res.statusCode}');
+                final token = jsonDecode(res.body)['token'] as String;
+                if (!mounted) return;
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => RoomScreen(roomName: room, userName: name, token: token),
+                ));
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e', style: const TextStyle(color: Colors.black)), backgroundColor: Colors.white),
+                );
+              } finally {
+                if (mounted) setState(() => _isJoining = false);
+              }
+            }
+
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                body: Container(
+                  decoration: const BoxDecoration(gradient: RadialGradient(
+                    center: Alignment(-0.7, -0.5), radius: 1.4,
+                    colors: [Color(0xFF151515), Color(0xFF000000)],
+                  )),
+                  child: SafeArea(child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+                    child: Column(children: [
+                      const SizedBox(height: 40),
+                      Container(width: 72, height: 72,
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22),
+                          boxShadow: [BoxShadow(color: Colors.white.withOpacity(0.25), blurRadius: 40)]),
+                        child: const Icon(Icons.mic_rounded, color: Colors.black, size: 36)),
+                      const SizedBox(height: 24),
+                      Text('VOXLINK', style: GoogleFonts.cinzel(fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: 8, color: Colors.white)),
+                      const SizedBox(height: 56),
+                      Container(padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.03),
+                          border: Border.all(color: Colors.white.withOpacity(0.08)),
+                          borderRadius: BorderRadius.circular(28)),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('Premium Voice Control', style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 6),
+                          Text('Encrypted, high-fidelity audio.', style: GoogleFonts.outfit(fontSize: 13, color: Colors.white38)),
+                          const SizedBox(height: 32),
+                          _field('YOUR NAME', 'Enter your name', Icons.person_outline_rounded, _nameCtrl),
+                          const SizedBox(height: 20),
+                          _field('ROOM ID', 'Enter Room ID', Icons.tag_rounded, _roomCtrl),
+                          const SizedBox(height: 32),
+                          SizedBox(width: double.infinity, height: 58,
+                            child: ElevatedButton(
+                              onPressed: _isJoining ? null : _handleJoin,
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
+                              child: _isJoining
+                                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
+                                : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                    Text('ESTABLISH LINK', style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 1.5)),
+                                    const SizedBox(width: 10),
+                                    const Icon(Icons.bolt_rounded, size: 20),
+                                  ]),
+                            )),
+                        ])),
+                    ]),
+                  )),
+                ),
+              );
+            }
+
+            Widget _field(String label, String hint, IconData icon, TextEditingController ctrl) {
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(label, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 2.5, color: Colors.white38)),
+                const SizedBox(height: 10),
+                Container(
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.03),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    borderRadius: BorderRadius.circular(14)),
+                  child: TextField(controller: ctrl, style: GoogleFonts.outfit(color: Colors.white, fontSize: 15),
+                    decoration: InputDecoration(hintText: hint, hintStyle: GoogleFonts.outfit(color: Colors.white24),
+                      prefixIcon: Icon(icon, color: Colors.white30, size: 20), border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16))),
+                ),
+              ]);
+            }
+          }
+
+          class RoomScreen extends StatefulWidget {
+            final String roomName, userName, token;
+            const RoomScreen({super.key, required this.roomName, required this.userName, required this.token});
+            @override
+            State<RoomScreen> createState() => _RoomScreenState();
+          }
+
+          class _RoomScreenState extends State<RoomScreen> {
+            late Room _room;
+            late EventsListener<RoomEvent> _listener;
+            bool _micEnabled = true;
+            final List<RemoteParticipant> _remoteParticipants = [];
+            bool _connected = false;
+
+            @override
+            void initState() { super.initState(); _room = Room(); _listener = _room.createListener(); _connect(); }
+
+            Future<void> _connect() async {
+              try {
+                await _room.connect('wss://wasd-9bjnbp7j.livekit.cloud', widget.token,
+                  roomOptions: const RoomOptions(defaultAudioPublishOptions: AudioPublishOptions(name: 'microphone')));
+                await _room.localParticipant?.setMicrophoneEnabled(true);
+                _listener
+                  ..on<ParticipantConnectedEvent>((e) { setState(() => _remoteParticipants.add(e.participant)); })
+                  ..on<ParticipantDisconnectedEvent>((e) { setState(() => _remoteParticipants.remove(e.participant)); })
+                  ..on<RoomDisconnectedEvent>((_) { if (mounted) Navigator.of(context).pop(); });
+                setState(() { _connected = true; _remoteParticipants.addAll(_room.remoteParticipants.values); });
+              } catch (e) {
+                if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e'))); Navigator.of(context).pop(); }
+              }
+            }
+
+            @override
+            void dispose() { _listener.dispose(); _room.disconnect(); _room.dispose(); super.dispose(); }
+
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                backgroundColor: Colors.black,
+                body: SafeArea(child: Column(children: [
+                  Padding(padding: const EdgeInsets.all(24),
+                    child: Row(children: [
+                      Expanded(child: Text(widget.roomName.toUpperCase(),
+                        style: GoogleFonts.cinzel(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.white))),
+                      const Text('LIVE', style: TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 2)),
+                    ])),
+                  Divider(color: Colors.white.withOpacity(0.05)),
+                  Expanded(child: !_connected
+                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                    : GridView.builder(
+                        padding: const EdgeInsets.all(24),
+                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 200, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.85),
+                        itemCount: _remoteParticipants.length + 1,
+                        itemBuilder: (_, i) {
+                          if (i == 0) return _tile(widget.userName, true, !_micEnabled, false);
+                          final p = _remoteParticipants[i - 1];
+                          return _tile(p.identity, false, !p.isMicrophoneEnabled(), p.isSpeaking);
+                        })),
+                  Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      GestureDetector(onTap: () async {
+                        await _room.localParticipant?.setMicrophoneEnabled(!_micEnabled);
+                        setState(() => _micEnabled = !_micEnabled);
+                      }, child: Container(width: 52, height: 52,
+                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                        child: Icon(_micEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
+                          color: _micEnabled ? Colors.white : Colors.redAccent))),
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: () => _room.disconnect().then((_) => Navigator.of(context).pop()),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                        child: Text('TERMINATE', style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 1.5))),
+                    ])),
+                ])),
+              );
+            }
+
+            Widget _tile(String name, bool isLocal, bool muted, bool speaking) {
+              return AnimatedContainer(duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: speaking ? Colors.white.withOpacity(0.07) : Colors.white.withOpacity(0.02),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: speaking ? Colors.white.withOpacity(0.25) : Colors.white.withOpacity(0.06))),
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Container(width: 60, height: 60,
+                    decoration: BoxDecoration(color: isLocal ? Colors.white : Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(18)),
+                    child: Center(child: Text(name.isEmpty ? '?' : name[0].toUpperCase(),
+                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: isLocal ? Colors.black : Colors.white)))),
+                  const SizedBox(height: 12),
+                  Text(isLocal ? '$name (You)' : name, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white)),
+                  if (muted) const Icon(Icons.mic_off_rounded, size: 13, color: Colors.redAccent),
+                ]));
+            }
+          }
+          MAINDART
 
       - name: Add AndroidX support
         run: |
@@ -50,7 +310,7 @@ jobs:
         working-directory: /tmp/voxlink_app
         run: flutter pub get
 
-      - name: Build Release APK
+      - name: Build APK
         working-directory: /tmp/voxlink_app
         run: flutter build apk --release --no-tree-shake-icons
 
