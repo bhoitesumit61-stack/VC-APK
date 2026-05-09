@@ -1,54 +1,17 @@
-# VOXLINK APK Build
+# bhoit
 
-A Flutter voice calling app based on VOXLINK web app using LiveKit.
+A new Flutter project.
 
-## Features
-- Join voice calling rooms
-- Real-time voice chat with LiveKit
-- Microphone control
-- User-friendly interface
+## Getting Started
 
-## Build Status
-Built automatically on GitHub Actions when pushing to `main` or `master` branch.
+This project is a starting point for a Flutter application.
 
-## Downloading the APK
+A few resources to get you started if this is your first Flutter project:
 
-1. Go to the **Actions** tab on GitHub
-2. Click on the latest **Build and Release APK** workflow
-3. Download the APK from the **Artifacts** section
+- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
+- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
 
-## Local Development
-
-### Prerequisites
-- Flutter SDK (https://flutter.dev/docs/get-started/install)
-- Android Studio + Android SDK
-- Java Development Kit (JDK 11+)
-
-### Build Commands
-
-```bash
-# Get dependencies
-flutter pub get
-
-# Build APK
-flutter build apk --release
-```
-
-The APK will be generated at: `build/app/outputs/flutter-apk/app-release.apk`
-
-## Backend Setup
-
-Update the backend URL in `lib/main.dart`:
-
-```dart
-const backendUrl = 'http://YOUR_BACKEND_URL:3000';
-```
-
-The app expects the backend to provide JWT tokens from the `/api/get-token` endpoint.
-
-## LiveKit Configuration
-
-Update LiveKit credentials in the backend:
-- LIVEKIT_URL: Your LiveKit server URL
-- LIVEKIT_API_KEY: Your API key
-- LIVEKIT_API_SECRET: Your API secret
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
