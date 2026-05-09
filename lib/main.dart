@@ -16,7 +16,7 @@ void main() {
   runApp(const VoxLinkApp());
 }
 
-// ─── App Root ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ App Root â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class VoxLinkApp extends StatelessWidget {
   const VoxLinkApp({super.key});
   @override
@@ -39,7 +39,7 @@ class VoxLinkApp extends StatelessWidget {
   }
 }
 
-// ─── Join Screen ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Join Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class JoinScreen extends StatefulWidget {
   const JoinScreen({super.key});
   @override
@@ -160,7 +160,7 @@ class _JoinScreenState extends State<JoinScreen> with SingleTickerProviderStateM
                       borderRadius: BorderRadius.circular(100),
                       color: Colors.white.withOpacity(0.04),
                     ),
-                    child: Text('ULTRA SECURE  •  LOW LATENCY',
+                    child: Text('ULTRA SECURE  â€¢  LOW LATENCY',
                       style: GoogleFonts.outfit(
                         fontSize: 9, fontWeight: FontWeight.w700,
                         letterSpacing: 2, color: Colors.white38,
@@ -280,7 +280,7 @@ class _GridPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ─── Room Screen ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Room Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class RoomScreen extends StatefulWidget {
   final String roomName, userName, token;
   const RoomScreen({super.key, required this.roomName, required this.userName, required this.token});
