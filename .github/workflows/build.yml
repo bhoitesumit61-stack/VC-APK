@@ -29,9 +29,15 @@ jobs:
       - name: Create Flutter project
         run: flutter create --org com.voxlink --project-name voxlink_app /tmp/voxlink_app
 
+      - name: Patch compileSdk to 34
+        run: |
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/' /tmp/voxlink_app/android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/' /tmp/voxlink_app/android/app/build.gradle
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 24/' /tmp/voxlink_app/android/app/build.gradle
+
       - name: Write pubspec.yaml
         run: |
-          cat > /tmp/voxlink_app/pubspec.yaml << 'PUBSPEC'
+          cat > /tmp/voxlink_app/pubspec.yaml << 'EOF'
           name: voxlink_app
           description: VoxLink Premium Voice Chat
           version: 1.0.0+1
@@ -51,11 +57,11 @@ jobs:
             flutter_lints: ^4.0.0
           flutter:
             uses-material-design: true
-          PUBSPEC
+          EOF
 
       - name: Write main.dart
         run: |
-          cat > /tmp/voxlink_app/lib/main.dart << 'MAINDART'
+          cat > /tmp/voxlink_app/lib/main.dart << 'EOF'
           import 'dart:convert';
           import 'package:flutter/material.dart';
           import 'package:flutter/services.dart';
@@ -148,19 +154,21 @@ jobs:
                         child: const Icon(Icons.mic_rounded, color: Colors.black, size: 36)),
                       const SizedBox(height: 24),
                       Text('VOXLINK', style: GoogleFonts.cinzel(fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: 8, color: Colors.white)),
+                      const SizedBox(height: 8),
+                      Text('Premium Voice  •  Encrypted', style: GoogleFonts.outfit(fontSize: 12, color: Colors.white38, letterSpacing: 2)),
                       const SizedBox(height: 56),
                       Container(padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(color: Colors.white.withOpacity(0.03),
                           border: Border.all(color: Colors.white.withOpacity(0.08)),
                           borderRadius: BorderRadius.circular(28)),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('Premium Voice Control', style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w700)),
+                          Text('Establish Connection', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
                           const SizedBox(height: 6),
-                          Text('Encrypted, high-fidelity audio.', style: GoogleFonts.outfit(fontSize: 13, color: Colors.white38)),
+                          Text('Lightweight, encrypted, high-fidelity audio.', style: GoogleFonts.outfit(fontSize: 13, color: Colors.white38)),
                           const SizedBox(height: 32),
-                          _field('YOUR NAME', 'Enter your name', Icons.person_outline_rounded, _nameCtrl),
+                          _buildField('YOUR NAME', 'Enter your name', Icons.person_outline_rounded, _nameCtrl),
                           const SizedBox(height: 20),
-                          _field('ROOM ID', 'Enter Room ID', Icons.tag_rounded, _roomCtrl),
+                          _buildField('ROOM ID', 'Enter Room ID', Icons.tag_rounded, _roomCtrl),
                           const SizedBox(height: 32),
                           SizedBox(width: double.infinity, height: 58,
                             child: ElevatedButton(
@@ -182,7 +190,7 @@ jobs:
               );
             }
 
-            Widget _field(String label, String hint, IconData icon, TextEditingController ctrl) {
+            Widget _buildField(String label, String hint, IconData icon, TextEditingController ctrl) {
               return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(label, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 2.5, color: Colors.white38)),
                 const SizedBox(height: 10),
@@ -236,70 +244,98 @@ jobs:
 
             @override
             Widget build(BuildContext context) {
+              final participants = [
+                {'name': widget.userName, 'local': true, 'muted': !_micEnabled, 'speaking': false},
+                ..._remoteParticipants.map((p) => {'name': p.identity, 'local': false, 'muted': !p.isMicrophoneEnabled(), 'speaking': p.isSpeaking}),
+              ];
               return Scaffold(
                 backgroundColor: Colors.black,
                 body: SafeArea(child: Column(children: [
-                  Padding(padding: const EdgeInsets.all(24),
+                  Padding(padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
                     child: Row(children: [
+                      Container(width: 8, height: 8, margin: const EdgeInsets.only(right: 10),
+                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle,
+                          boxShadow: [BoxShadow(color: Colors.white, blurRadius: 8)])),
                       Expanded(child: Text(widget.roomName.toUpperCase(),
-                        style: GoogleFonts.cinzel(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.white))),
-                      const Text('LIVE', style: TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 2)),
+                        style: GoogleFonts.cinzel(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.white))),
+                      Text('${participants.length} CONNECTED', style: GoogleFonts.outfit(fontSize: 11, color: Colors.white38, letterSpacing: 1)),
                     ])),
-                  Divider(color: Colors.white.withOpacity(0.05)),
+                  Divider(color: Colors.white.withOpacity(0.05), height: 1),
                   Expanded(child: !_connected
-                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                    ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        const CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        const SizedBox(height: 16),
+                        Text('CONNECTING...', style: GoogleFonts.outfit(fontSize: 12, letterSpacing: 2, color: Colors.white38)),
+                      ]))
                     : GridView.builder(
                         padding: const EdgeInsets.all(24),
                         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 200, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.85),
-                        itemCount: _remoteParticipants.length + 1,
+                        itemCount: participants.length,
                         itemBuilder: (_, i) {
-                          if (i == 0) return _tile(widget.userName, true, !_micEnabled, false);
-                          final p = _remoteParticipants[i - 1];
-                          return _tile(p.identity, false, !p.isMicrophoneEnabled(), p.isSpeaking);
+                          final p = participants[i];
+                          final speaking = p['speaking'] as bool;
+                          final muted = p['muted'] as bool;
+                          final isLocal = p['local'] as bool;
+                          final name = p['name'] as String;
+                          return AnimatedContainer(duration: const Duration(milliseconds: 300),
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: speaking ? Colors.white.withOpacity(0.07) : Colors.white.withOpacity(0.02),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: speaking ? Colors.white.withOpacity(0.3) : Colors.white.withOpacity(0.06))),
+                            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                              Container(width: 60, height: 60,
+                                decoration: BoxDecoration(
+                                  color: isLocal ? Colors.white : Colors.white.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(18)),
+                                child: Center(child: Text(
+                                  name.isEmpty ? '?' : name[0].toUpperCase(),
+                                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900,
+                                    color: isLocal ? Colors.black : Colors.white)))),
+                              const SizedBox(height: 14),
+                              Text(isLocal ? '$name\n(You)' : name,
+                                textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white)),
+                              if (muted) ...[const SizedBox(height: 4), const Icon(Icons.mic_off_rounded, size: 14, color: Colors.redAccent)],
+                            ]));
                         })),
                   Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
-                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      GestureDetector(onTap: () async {
-                        await _room.localParticipant?.setMicrophoneEnabled(!_micEnabled);
-                        setState(() => _micEnabled = !_micEnabled);
-                      }, child: Container(width: 52, height: 52,
-                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
-                        child: Icon(_micEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
-                          color: _micEnabled ? Colors.white : Colors.redAccent))),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: () => _room.disconnect().then((_) => Navigator.of(context).pop()),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                        child: Text('TERMINATE', style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 1.5))),
-                    ])),
+                    child: Container(padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.04),
+                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        borderRadius: BorderRadius.circular(22)),
+                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        GestureDetector(
+                          onTap: () async {
+                            await _room.localParticipant?.setMicrophoneEnabled(!_micEnabled);
+                            setState(() => _micEnabled = !_micEnabled);
+                          },
+                          child: Container(width: 52, height: 52,
+                            decoration: BoxDecoration(
+                              color: _micEnabled ? Colors.white.withOpacity(0.1) : Colors.redAccent.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(16)),
+                            child: Icon(_micEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
+                              color: _micEnabled ? Colors.white : Colors.redAccent))),
+                        const SizedBox(width: 12),
+                        Container(width: 1, height: 28, color: Colors.white.withOpacity(0.1)),
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed: () => _room.disconnect().then((_) => Navigator.of(context).pop()),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
+                          child: Row(children: [
+                            const Icon(Icons.phone_disabled_rounded, size: 18),
+                            const SizedBox(width: 8),
+                            Text('TERMINATE', style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 1.5)),
+                          ])),
+                      ]))),
                 ])),
               );
             }
-
-            Widget _tile(String name, bool isLocal, bool muted, bool speaking) {
-              return AnimatedContainer(duration: const Duration(milliseconds: 300),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: speaking ? Colors.white.withOpacity(0.07) : Colors.white.withOpacity(0.02),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: speaking ? Colors.white.withOpacity(0.25) : Colors.white.withOpacity(0.06))),
-                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Container(width: 60, height: 60,
-                    decoration: BoxDecoration(color: isLocal ? Colors.white : Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(18)),
-                    child: Center(child: Text(name.isEmpty ? '?' : name[0].toUpperCase(),
-                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: isLocal ? Colors.black : Colors.white)))),
-                  const SizedBox(height: 12),
-                  Text(isLocal ? '$name (You)' : name, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white)),
-                  if (muted) const Icon(Icons.mic_off_rounded, size: 13, color: Colors.redAccent),
-                ]));
-            }
           }
-          MAINDART
+          EOF
 
       - name: Add AndroidX support
         run: |
