@@ -29,14 +29,16 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Generate missing launcher icons
+      - name: Generate full Android res from template
         run: |
           flutter create --project-name temp_icons /tmp/temp_flutter
-          cp -r /tmp/temp_flutter/android/app/src/main/res/mipmap-* \
+          mkdir -p voxlink_apk/android/app/src/main/res
+          cp -r /tmp/temp_flutter/android/app/src/main/res/. \
             voxlink_apk/android/app/src/main/res/
 
       - name: Create local.properties
         run: |
+          mkdir -p voxlink_apk/android
           echo "sdk.dir=$ANDROID_HOME" > voxlink_apk/android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> voxlink_apk/android/local.properties
           echo "flutter.versionCode=1" >> voxlink_apk/android/local.properties
